@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Sau</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 10px;
+    text-align: center;
+}
+video {
+    width: 100%;
+    max-height: 70vh;
+    background: #000;
+    border-radius: 8px;
+}
+select, button {
+    font-size: 16px;
+    padding: 8px;
+    margin: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<h3>📷 Camera sau (GitHub Pages)</h3>
+
+<select id="cameraSelect"></select><br>
+
+<button onclick="startCamera()">▶️ Bật camera</button>
+<button onclick="capture()">📸 Chụp</button>
+
+<video id="video" playsinline></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+const video = document.getElementById("video");
+const cameraSelect = document.getElementById("cameraSelect");
+let currentStream = null;
+
+/* 1️⃣ Lấy danh sách camera */
+async function loadCameras() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    cameraSelect.innerHTML = "";
+
+    let cams = devices.filter(d => d.kind === "videoinput");
+
+    cams.forEach((cam, i) => {
+        let option = document.createElement("option");
+        option.value = cam.deviceId;
+        option.text =
+            cam.label ||
+            (i === 0 ? "Camera trước" : "Camera sau");
+        cameraSelect.appendChild(option);
+    });
+
+    /* 2️⃣ Tự chọn camera sau nếu tìm thấy */
+    let backCam = cams.find(c =>
+        c.label.toLowerCase().includes("back") ||
+        c.label.toLowerCase().includes("rear")
+    );
+
+    if (backCam) {
+        cameraSelect.value = backCam.deviceId;
+    }
+}
+
+/* 3️⃣ Bật camera */
+async function startCamera() {
+    if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+    }
+
+    try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: cameraSelect.value } },
+            audio: false
+        });
+
+        video.srcObject = currentStream;
+        await video.play();
+
+    } catch (err) {
+        alert("Không mở được camera: " + err.name);
+        console.log(err);
+    }
+}
+
+/* 4️⃣ Chụp ảnh */
+function capture() {
+    if (!currentStream || video.videoWidth === 0) {
+        alert("Camera chưa sẵn sàng");
+        return;
+    }
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    const img = canvas.toDataURL("image/jpeg", 0.9);
+
+    /* Demo: mở ảnh ra tab mới */
+    const win = window.open();
+    win.document.write(`<img src="${img}" style="width:100%">`);
+}
+
+/* 5️⃣ Xin quyền → load camera */
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    stream.getTracks().forEach(t => t.stop());
+    loadCameras();
+});
+</script>
+
+</body>
+</html>
